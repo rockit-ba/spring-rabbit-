@@ -4081,173 +4081,344 @@ public RabbitTransactionManager rabbitTransactionManager() {
 
 
 
+# 18 listener 并发
 
 
 
+## 18.1 SimpleMessageListenerContainer
 
+默认情况下，该listener container 启动一个consumer，该consumer从队列中接收消息。
 
+在检查上一节中的表时，您可以看到许多控制并发性的属性。  最简单的是`currentsconsumers`，它创建并发处理消息的（固定）数量的consumer。
 
+在1.3.0版之前，这是唯一可用的设置，必须停止容器并再次启动容器才能更改设置。
 
+从1.3.0版开始，您现在可以动态调整parallelConsumers属性。  如果在容器运行时更改了容器，则会根据需要动态添加或删除使用者，以适应新设置。
 
+另外，添加了一个名为maxConcurrentConsumers的新属性，并且该容器根据工作负载动态调整了并发性。   这与四个附加属性一起工作：ContinuousActiveTrigger，startConsumerMinInterval，continuousIdleTrigger和stopConsumerMinInterval。 
 
+ 在默认设置下，增加consumer的算法如下：
 
+如果尚未达到maxConcurrentConsumers且现有consumer已连续十个周期处于活动状态，并且自启动最后一个consumer以来至少经过了10秒钟，则将启动一个新的consumer。 补充： 如果consumer以batchSize * receiveTimeout毫秒接收至少一条消息，则认为该consumer是活动的。
 
+在默认设置下，减少consumer的算法如下：
 
+如果运行的并发consumer数量超量了，并且consumer检测到十个连续超时（空闲），并且最后一个consumer至少在60秒前停止，则该consumer将停止。   超时取决于`receiveTimeout`和`batchSize`属性。补充：  如果使用者未接收到batchSize *  receiveTimeout毫秒中的消息，则被认为是空闲的。 因此，在默认超时（一秒）和`batchSize`为`4`的情况下，在40秒的空闲时间后考虑停止使用程序（四个超时对应于一个空闲检测）。
 
+> 笔记：实际上，只有在整个容器闲置一段时间后，才可以停止使用consumer。  这是因为broker在所有活跃的消费者中共享其工作。
+>
 
+每个consumer都使用一个channel，而不管配置的队列数量如何。
 
+从2.0版开始，可以使用concurrency属性，设置parallelConsumers和maxConcurrentConsumers属性。
 
 
 
+## 18.2 DirectMessageListenerContainer
 
+使用此容器，并发性基于配置的queue和consumersPerQueue。   每个队列的每个consumer都使用一个单独的channel，并发性由Rabbit客户端库控制。   默认情况下，在编写本文时，它使用`DEFAULT_NUM_THREADS =  Runtime.getRuntime().availableProcessors（）* 2`个线程的池。
 
+您可以配置taskExecutor以提供所需的最大并发性。
 
 
 
+# 19 独占的消费者
 
+从1.3版开始，您可以使用一个独占consumer配置listener container。  这样可以防止其他容器从队列中使用，直到取消当前使用方为止。  这样的容器的并发性必须为1。
 
+使用独占consumer时，其他容器会尝试根据recoveryInterval属性从队列中进行消耗，如果尝试失败，则会记录一条WARN消息。
 
 
 
+# 20 Listener Container Queues
 
+1.3版引入了许多改进，用于处理侦听器容器中的多个队列。
 
+必须将container配置为  监听至少一个队列 。  以前也是如此，但是现在可以在运行时  添加和删除队列。   处理完任何 预取 的消息后，容器将回收（取消并重新创建）consumer 。  删除队列时，必须至少保留一个队列。
 
+现在，如果有任何队列可用，则consumer将启动。  以前，如果有任何一个队列不可用，容器将停止。  现在，只有在没有可用队列的情况下才是这种情况。  如果不是所有队列都可用，则容器会尝试每60秒 被动声明丢失的队列。
 
+同样，如果consumer从代理收到cancel命令（例如，如果队列已删除），则该consumer尝试恢复，并且恢复的consumer继续处理来自任何其他已配置队列的消息。  以前，对一个队列的cancel会导致cancel整个consumer，最终，由于缺少队列，容器将停止。
 
+如果希望永久删除队列，则应在删除队列之前或之后更新容器。
 
 
 
+# 21 从错误和broker失败中恢复
 
+Spring AMQP提供的一些关键（也是最流行的）高级功能，这些功能与协议错误或broker失败时的恢复和自动重新连接有关。  我们已经在本指南中看到了所有相关的组件，但是本节应该有助于将它们放在一起，并分别指出功能和恢复方案。
 
+主要的重新连接功能由`CachingConnectionFactory`本身启用。  使用RabbitAdmin自动声明功能通常也很有益。另外，如果您关心投递的可靠性，则可能还需要使用RabbitMessage和SimpleMessageListenerContainer中的`channelTransacted`标志以及SimpleMessageListenerContainer中的AcknowledgeMode.AUTO（或者手动确认）。
 
 
 
+## 21.1 自动声明 Exchanges, Queues, and Bindings
 
+RabbitAdmin组件可以在启动时声明交换，队列和绑定。  它通过ConnectionListener懒惰地执行（懒惰加载）此操作。因此，如果broker在启动时不存在，也没有关系。
 
+第一次使用Connection（例如，通过发送消息）时，将触发监听器并应用admin的功能。在listener中执行自动声明的另一个好处是，如果由于任何原因（例如，代理死亡，网络故障等）而断开连接，则在重新建立连接时会再次应用它们（自动声明）。
 
+> 笔记：以这种方式声明的队列必须具有固定名称：被明确声明或由 AnonymousQueue 实例生成。  匿名队列是非持久的，排他的和自动删除的。
+>
 
+> 警告：仅当CachingConnectionFactory 的cache mode 为`CHANNEL`（默认）时，才执行自动声明。  之所以存在此限制，是因为排他队列和自动删除队列已绑定到该连接。
+>
 
+从版本2.2.2开始，RabbitAdmin将检测类型为DeclarationCustomizer的bean，并在实际处理声明之前应用该函数（DeclarationCustomizer）。
 
+```java
+@Bean
+public DeclarableCustomizer customizer() {
+    return dec -> {
+        if (dec instanceof Queue && ((Queue) dec).getName().equals("my.queue")) {
+            dec.addArgument("some.new.queue.argument", true);
+        }
+        return dec;
+    };
+}
+```
 
+它在  不提供直接访问Declarable bean定义  的项目中也很有用。
 
 
 
+## 21.2 同步操作中的失败和重试选项
 
+如果在使用RabbitTemplate时（例如）在同步序列中失去与broker的连接，则Spring AMQP会引发AmqpException（通常但并非总是AmqpIOException）。我们不会尝试掩盖这些问题，因此您必须能够捕获并响应异常。如果您怀疑连接断开，那么最容易做的就是再次尝试该操作。您可以手动执行此操作，也可以查看使用Spring Retry处理（命令式或声明式）重试。
 
+Spring Retry提供了几个AOP拦截器，并提供了很大的灵活性来指定重试的参数（尝试次数，异常类型，退避算法等）。Spring AMQP还为AMQP用例提供了一种方便的工厂bean，以方便的形式创建Spring Retry拦截器，并提供了可用于实现自定义恢复逻辑的强类型回调接口。如果没有事务或在重试回调中启动了事务，则无状态重试是合适的。请注意，无状态重试比有状态重试更易于配置和分析，但是如果正在进行的事务必须回滚，则通常不适合使用。在事务中间断开连接应具有与回滚相同的效果。因此，对于在事务从堆栈开始的更高位置进行的重新连接而言，有状态重试通常是最佳选择。有状态重试需要一种机制来唯一地标识消息。最简单的方法是让发件人在MessageId消息属性中放置一个唯一值。消息转换器提供了执行此操作的选项：您可以将createMessageIds设置为true。否则，您可以将MessageKeyGenerator实现注入到拦截器中。key生成器必须为每个消息返回唯一的key。在2.0版之前的版本中，提供了MissingMessageIdAdvice。它使没有messageId属性的消息仅被重试一次（忽略重试设置）。现在不再提供此advice（MissingMessageIdAdvice），因为与spring-retry 1.2版一起，其功能已内置在拦截器和message listener container中。
 
+> 笔记：为了向后兼容，默认情况下（在重试一次之后），具有空 messageId 的消息被认为对consumer是致命的（consumer已停止）。  若要复制MissingMessageIdAdvice提供的功能，可以在listener container 上将`statefulRetryFatalWithNullMessageId`属性设置为false。  使用该设置，consumer会继续运行，并且message被拒绝（在重试一次之后）。  它被丢弃或路由到死信队列（如果已配置）。
+>
 
+从1.3版开始，提供了一个构建者风格API，以帮助使用Java（在@Configuration类中）组装这些拦截器。  以下示例显示了如何执行此操作：
 
+```java
+@Bean
+public StatefulRetryOperationsInterceptor interceptor() {
+    return RetryInterceptorBuilder.stateful()
+            .maxAttempts(5)
+            .backOffOptions(1000, 2.0, 10000) // initialInterval, multiplier, maxInterval
+            .build();
+}
+```
 
+只能以这种方式配置重试功能的子集。  更多高级功能将需要将RetryTemplate配置为Spring bean。
 
 
 
+## 21.3 Retry with Batch Listeners
 
+不建议使用批处理侦听器配置重试，除非该批处理由produce在单个record中创建。对于用户创建的批处理，框架不知道该批处理中的哪个消息导致了故障，因此无法在重试用完后进行恢复。  对于生产者创建的批次，由于实际上只有一条消息失败，因此会被恢复整个消息。应用程序可能希望通过设置抛出的异常的index属性来通知自定义恢复程序，该批处理中发生故障的位置。
 
+批处理listener的重试恢复器必须实现MessageBatchRecoverer。
 
 
 
+## 21.4 消息listener 和异步情况
 
+如果MessageListener因业务异常而失败，则由消息侦听器容器处理该异常，然后该容器将回头监听另一条消息。如果故障是由断开的连接（不是业务异常）引起的，正在为listener收集message的consumer必须取消并重新启动。SimpleMessageListenerContainer会无缝处理此问题，并留下一条日志说明正在重新启动侦听器。实际上，它无限循环，试图重新启动使用者。只有当consumer表现得很糟糕时，它才会放弃。副作用是，如果在容器启动时broker关闭，则它将继续尝试直到可以建立连接为止。
 
+与协议错误和断开连接相反，业务异常处理可能需要更多考虑使用一些自定义配置，尤其是在使用事务或容器ack的情况下。在2.8.x之前，RabbitMQ没有死信行为的定义。因此，默认情况下，由于业务异常而被拒绝或回滚的消息可以无限地重新发送。为了限制客户端的重传次数，一种选择是listener advice chain 中的`StatefulRetryOperationsInterceptor`。这个拦截器可以具有实现自定义死信操作的恢复回调-适用于您的特定环境的任何方法。
 
+另一种选择是将容器的defaultRequeueRejected属性设置为false。  这将导致所有失败的消息都被丢弃。当使用RabbitMQ 2.8.x或更高版本时，这也有助于将消息传递给死信交换。
 
+或者，您可以引发AmqpRejectAndDontRequeueException。  这样做可以防止消息重新排队，而不管defaultRequeueRejected属性的设置如何。
 
+从2.1版开始，引入了InstantRequeueAmqpException以执行完全相反的逻辑：无论defaultRequeueRejected属性如何设置，都会重新排队消息。
 
+通常，将上面两种技术结合使用。   您可以在advice chain 中将StatefulRetryOperationsInterceptor与抛出AmqpRejectAndDontRequeueException的MessageRecoverer一起使用。  当所有重试都用尽时，将调用MessageRecover。RejectAndDontRequeueRecoverer正是这样做的。  默认的MessageRecoverer使用错误的消息并发出WARN消息。
 
+从版本1.3开始，提供了新的RepublishMessageRecoverer，以允许在重试用尽后发布失败的消息。
 
+当恢复者消费了最后的异常时，该消息将被确认并且不会发送到死信交换机（如果有的话）。
 
+以下示例显示如何将RepublishMessageRecoverer设置为恢复器：
 
+```java
+@Bean
+RetryOperationsInterceptor interceptor() {
+    return RetryInterceptorBuilder.stateless()
+            .maxAttempts(5)
+            .recoverer(new RepublishMessageRecoverer(amqpTemplate(), "something", "somethingelse"))
+            .build();
+}
+```
 
+RepublishMessageRecoverer在消息头中发布带有其他信息的消息，例如异常消息，堆栈跟踪，原始交换和路由键。   可以通过创建子类并覆盖AdditionalHeaders（）来添加其他标头。   也可以在additionalHeaders（）中更改deliveryMode（或任何其他属性），如以下示例所示：
 
+```java
+RepublishMessageRecoverer recoverer = new RepublishMessageRecoverer(amqpTemplate, "error") {
 
+    protected Map<? extends String, ? extends Object> additionalHeaders(Message message, Throwable cause) {
+        message.getMessageProperties()
+            .setDeliveryMode(message.getMessageProperties().getReceivedDeliveryMode());
+        return null;
+    }
 
+};
+```
 
+从2.0.5版开始，如果堆栈跟踪太大，则可能会被截断；这是因为所有header都必须放在一个框架中。默认情况下，如果堆栈跟踪少于20,000字节（“余量”）可用于其他header，则它将被截断。如果您需要更多或更少的空间用于其他标题，则可以通过设置恢复程序的frameMaxHeadroom属性进行调整。  
 
+从版本2.3.3开始，提供了一个新的子类RepublishMessageRecovererWithConfirms;  这支持两种样式的发布者确认，并且将在返回之前等待确认（如果未确认或返回消息，则抛出异常）。
 
+如果确认类型为CORRELATED，则子类还将检测是否返回消息并抛出AmqpMessageReturnedException;。  如果发布被否定确认，它将抛出AmqpNackReceivedException。
 
+如果确认类型为SIMPLE，则子类将在通道上调用waitForConfirmsOrDie方法。
 
+从2.1版开始，添加了InstantRequeueMessageRecoverer以引发InstantRequeueAmqpException，该异常通知listener container 会重新排队当前失败的消息。
 
 
 
+## 21.5 spring 重试的异常分类
 
+Spring Retry在确定哪些异常可以调用重试方面具有很大的灵活性。  默认配置将重试所有异常。  鉴于用户异常被包装在ListenerExecutionFailedException中，我们需要确保分类检查异常原因。  默认分类器仅查看顶级异常。
 
+从Spring Retry 1.0.3开始，BinaryExceptionClassifier具有一个名为traverseCauses的属性（默认值：false）。  如果为true，它将遍历异常原因，直到找到匹配项或没有原因为止。
 
+要使用此分类器进行重试，可以使用构造函数创建SimpleRetryPolicy，该构造函数采用最大尝试次数，Map of Exception实例和布尔值（traverseCauses），然后将此策略注入RetryTemplate中。
 
 
 
+# 22 多broker （或集群）支持
 
+在单个应用程序与多broker或broker群集之间进行通信时，2.3版增加了更多的便利。  在consumer方面，主要好处是底层结果可以自动将声明的队列与适当的broker相关联。
 
+例如：
 
+```java
+@SpringBootApplication(exclude = RabbitAutoConfiguration.class)
+public class Application {
 
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
 
+    @Bean
+    CachingConnectionFactory cf1() {
+        return new CachingConnectionFactory("localhost");
+    }
 
+    @Bean
+    CachingConnectionFactory cf2() {
+        return new CachingConnectionFactory("otherHost");
+    }
 
+    @Bean
+    CachingConnectionFactory cf3() {
+        return new CachingConnectionFactory("thirdHost");
+    }
 
+    @Bean
+    SimpleRoutingConnectionFactory rcf(CachingConnectionFactory cf1,
+            CachingConnectionFactory cf2, CachingConnectionFactory cf3) {
 
+        SimpleRoutingConnectionFactory rcf = new SimpleRoutingConnectionFactory();
+        rcf.setDefaultTargetConnectionFactory(cf1);
+        rcf.setTargetConnectionFactories(Map.of("one", cf1, "two", cf2, "three", cf3));
+        return rcf;
+    }
 
+    @Bean("factory1-admin")
+    RabbitAdmin admin1(CachingConnectionFactory cf1) {
+        return new RabbitAdmin(cf1);
+    }
 
+    @Bean("factory2-admin")
+    RabbitAdmin admin2(CachingConnectionFactory cf2) {
+        return new RabbitAdmin(cf2);
+    }
 
+    @Bean("factory3-admin")
+    RabbitAdmin admin3(CachingConnectionFactory cf3) {
+        return new RabbitAdmin(cf3);
+    }
 
+    @Bean
+    public RabbitListenerEndpointRegistry rabbitListenerEndpointRegistry() {
+        return new RabbitListenerEndpointRegistry();
+    }
 
+    @Bean
+    public RabbitListenerAnnotationBeanPostProcessor postProcessor(RabbitListenerEndpointRegistry registry) {
+        MultiRabbitListenerAnnotationBeanPostProcessor postProcessor
+                = new MultiRabbitListenerAnnotationBeanPostProcessor();
+        postProcessor.setEndpointRegistry(registry);
+        postProcessor.setContainerFactoryBeanName("defaultContainerFactory");
+        return postProcessor;
+    }
 
+    @Bean
+    public SimpleRabbitListenerContainerFactory factory1(CachingConnectionFactory cf1) {
+        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+        factory.setConnectionFactory(cf1);
+        return factory;
+    }
 
+    @Bean
+    public SimpleRabbitListenerContainerFactory factory2(CachingConnectionFactory cf2) {
+        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+        factory.setConnectionFactory(cf2);
+        return factory;
+    }
 
+    @Bean
+    public SimpleRabbitListenerContainerFactory factory3(CachingConnectionFactory cf3) {
+        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+        factory.setConnectionFactory(cf3);
+        return factory;
+    }
 
+    @Bean
+    RabbitTemplate template(RoutingConnectionFactory rcf) {
+        return new RabbitTemplate(rcf);
+    }
 
+    @Bean
+    ConnectionFactoryContextWrapper wrapper(SimpleRoutingConnectionFactory rcf) {
+        return new ConnectionFactoryContextWrapper(rcf);
+    }
 
+}
 
+@Component
+class Listeners {
 
+    @RabbitListener(queuesToDeclare = @Queue("q1"), containerFactory = "factory1")
+    public void listen1(String in) {
 
+    }
 
+    @RabbitListener(queuesToDeclare = @Queue("q2"), containerFactory = "factory2")
+    public void listen2(String in) {
 
+    }
 
+    @RabbitListener(queuesToDeclare = @Queue("q3"), containerFactory = "factory3")
+    public void listen3(String in) {
 
+    }
 
+}
+```
 
+我们声明了3套底层组件（连接工厂，管理员，容器工厂）。  `@RabbitListener`可以定义要使用的container factory 。   在这种情况下，他们还使用`queuesToDeclare`，让队列在broker上声明（如果不存在）。   通过使用约定`<container-factory-name> -admin`命名RabbitAdmin  bean，基础组件能够确定哪个admin应该声明队列。  这也适用于`bindings =  @QueueBinding（…）`，从而也会声明 exchange和binding。  它不适用于队列，因为这希望队列已经存在。
 
+在生产者端，提供了一个方便的ConnectionFactoryContextWrapper类，以简化使用RoutingConnectionFactory的过程。
 
+正如您在上面看到的，添加了SimpleRoutingConnectionFactory bean，其中包含routing key 1、2和3。  还有一个使用该工厂的RabbitTemplate。  这是将template与包装器一起使用，以路由到其中一个broker群集的示例。
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+```java
+@Bean
+public ApplicationRunner runner(RabbitTemplate template, ConnectionFactoryContextWrapper wrapper) {
+    return args -> {
+        wrapper.run("one", () -> template.convertAndSend("q1", "toCluster1"));
+        wrapper.run("two", () -> template.convertAndSend("q2", "toCluster2"));
+        wrapper.run("three", () -> template.convertAndSend("q3", "toCluster3"));
+    };
+}
+```
 
 
 
