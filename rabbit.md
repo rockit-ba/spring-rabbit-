@@ -4018,23 +4018,66 @@ public RabbitTransactionManager rabbitTransactionManager() {
 
 # 17 Message Listener Container 配置
 
-用于配置与事务和服务质量相关的SimpleMessageListenerContainer（SMLC）和DirectMessageListenerContainer（DMLC）的选项很多，它们中的一些相互交互。
+用于配置与事务和服务质量相关的`SimpleMessageListenerContainer`（SMLC）和`DirectMessageListenerContainer`（DMLC）的选项很多，它们中的一些相互交互。
 
 下表显示了使用命名空间配置<rabbit：listener-container />时的容器属性名称及其等效属性名称（在括号中）。  该元素上的type属性可以是简单的（默认），也可以直接指定SMLC或DMLC。  命名空间未公开某些属性。  这些由属性的N / A表示。
 
 
 
-| Property (Attribute)                      | Description                                                  | SMLC | DMLC |
-| ----------------------------------------- | ------------------------------------------------------------ | ---- | ---- |
-| ackTimeout (N/A)                          | 设置messagesPerAck时，此超时将用作发送确认的替代方法。   当收到新消息时，会将未确认消息的计数与messagesPerAck进行比较，并将自上次确认以来的时间与该值进行比较。   如果任一条件为真，则确认该消息。  当没有新消息到达且有未确认的消息时，此超时是近似的，因为仅在每个monitorInterval上检查条件。  另请参阅此表中的messagesPerAck和monitorInterval。 |      | Y    |
-| acknowledgeMode (acknowledge)             | **NONE**：没有发送确认（与channelTransacted = true不兼容）。  RabbitMQ之所以称其为“自动确认”，是因为代理假定所有消息都已确认，而无需使用方采取任何行动。**MANUAL**：手动确认，listener必须通过调用Channel.basicAck（）来确认所有消息。**AUTO**：除非MessageListener引发异常，否则容器将自动确认该消息。请注意，acceptMode是channelTransacted的补充：如果channel是事务的，broker除了ack外还需要提交通知,这是默认的模式。 | Y    | Y    |
-| adviceChain (advice-chain)                | 适用于侦听器执行的AOP advice 数组。  这可用于应用其他跨领域问题，例如在broker死亡的情况下自动重试。  请注意，只要broker仍然存在，CachingConnectionFactory就会处理AMQP错误后的简单重新连接。 | Y    | Y    |
-| afterReceivePostProcessors (N/A)          | 在调用listener之前调用的 `MessagePostProcessor`实例 的数组。  后处理器可以实现PriorityOrdered或Ordered。  数组按最后调用的无序成员排序。  如果后处理器返回null，则该消息将被丢弃（并在适当的情况下进行确认）。 | Y    | Y    |
-| alwaysRequeueWith TxManagerRollback (N/A) | 设置为true，并且一个一个事务管理器也被配置，可以始终在回滚时重新排队消息。 | Y    | Y    |
-| autoDeclare (auto-declare)                | 设置为true（默认值）时，如果容器在启动过程中检测到至少一个队列丢失，则可能使用RabbitAdmin来重新声明所有AMQP对象（exchange，queue，binding），这可能是因为它是自动删除或过期的队列，但是如果队列由于某种原因而丢失，则重新声明将继续进行。  若要禁用此行为，请将此属性设置为false。  请注意，如果缺少所有队列，容器将无法启动。 | Y    | Y    |
-| autoStartup (auto-startup)                | 容器是否在ApplicationContext进行时启动的标志（作为SmartLifecycle回调的一部分，该回调在所有bean初始化之后发生）。  默认值为true，但是如果你的broker在启动时可能不可用，则可以将其设置为false，并在知道代理已准备好之后手动调用start（）。 | Y    | Y    |
-| batchSize (transaction-size) (batch-size) | 当将accepterMode设置为AUTO时，容器将在发送确认之前尝试处理多达此数量的消息（等待每个消息直到接收超时设置）。  这也是在提交事务channel时的情况。  如果prefetchCount小于batchSize，则将其增加以匹配batchSize。 | Y    |      |
-| batchingStrategy (N/A)                    | 对消息进行分批处理时使用的策略。  默认的SimpleDebatchingStrategy。 | Y    | Y    |
+| Property (Attribute)                                         | Description                                                  | SMLC | DMLC |
+| ------------------------------------------------------------ | ------------------------------------------------------------ | ---- | ---- |
+| ackTimeout (N/A)                                             | 设置messagesPerAck时，此超时将用作发送确认的替代方法。   当收到新消息时，会将未确认消息的计数与messagesPerAck进行比较，并将自上次确认以来的时间与该值进行比较。   如果任一条件为真，则确认该消息。  当没有新消息到达且有未确认的消息时，此超时是近似的，因为仅在每个monitorInterval上检查条件。  另请参阅此表中的messagesPerAck和monitorInterval。 |      | Y    |
+| acknowledgeMode (acknowledge)                                | **NONE**：没有发送确认（与channelTransacted = true不兼容）。  RabbitMQ之所以称其为“自动确认”，是因为代理假定所有消息都已确认，而无需使用方采取任何行动。**MANUAL**：手动确认，listener必须通过调用Channel.basicAck（）来确认所有消息。**AUTO**：除非MessageListener引发异常，否则容器将自动确认该消息。请注意，acceptMode是channelTransacted的补充：如果channel是事务的，broker除了ack外还需要提交通知,这是默认的模式。 | Y    | Y    |
+| adviceChain (advice-chain)                                   | 适用于侦听器执行的AOP advice 数组。  这可用于应用其他跨领域问题，例如在broker死亡的情况下自动重试。  请注意，只要broker仍然存在，CachingConnectionFactory就会处理AMQP错误后的简单重新连接。 | Y    | Y    |
+| afterReceivePostProcessors (N/A)                             | 在调用listener之前调用的 `MessagePostProcessor`实例 的数组。  后处理器可以实现PriorityOrdered或Ordered。  数组按最后调用的无序成员排序。  如果后处理器返回null，则该消息将被丢弃（并在适当的情况下进行确认）。 | Y    | Y    |
+| alwaysRequeueWith TxManagerRollback (N/A)                    | 设置为true，并且一个一个事务管理器也被配置，可以始终在回滚时重新排队消息。 | Y    | Y    |
+| autoDeclare (auto-declare)                                   | 设置为true（默认值）时，如果容器在启动过程中检测到至少一个队列丢失，则可能使用RabbitAdmin来重新声明所有AMQP对象（exchange，queue，binding），这可能是因为它是自动删除或过期的队列，但是如果队列由于某种原因而丢失，则重新声明将继续进行。  若要禁用此行为，请将此属性设置为false。  请注意，如果缺少所有队列，容器将无法启动。 | Y    | Y    |
+| autoStartup (auto-startup)                                   | 容器是否在ApplicationContext进行时启动的标志（作为SmartLifecycle回调的一部分，该回调在所有bean初始化之后发生）。  默认值为true，但是如果你的broker在启动时可能不可用，则可以将其设置为false，并在知道代理已准备好之后手动调用start（）。 | Y    | Y    |
+| batchSize (transaction-size) (batch-size)                    | 当将accepterMode设置为AUTO时，容器将在发送确认之前尝试处理多达此数量的消息（等待每个消息直到接收超时设置）。  这也是在提交事务channel时的情况。  如果prefetchCount小于batchSize，则将其增加以匹配batchSize。 | Y    |      |
+| batchingStrategy (N/A)                                       | 对消息进行分批处理时使用的策略。  默认的SimpleDebatchingStrategy。 | Y    | Y    |
+| channelTransacted (channel-transacted)                       | 布尔类型，表示是否 在事务中（手动或自动）确认所有消息。      | Y    | Y    |
+| concurrency (N/A)                                            | 每个listener 的并发consumer范围取值： m值---n值（最小，最大）。  如果仅提供n值，则n是固定数量的consumer。 | Y    |      |
+| concurrentConsumers (concurrency)                            | 初始化启动时为每个listener配置的并发consumer数。             | Y    |      |
+| connectionFactory (connection-factory)                       | 对ConnectionFactory的引用。  使用XML namespace进行配置时，默认引用的Bean名称为`RabbitConnectionFactory`。 | Y    | Y    |
+| consecutiveActiveTrigger (min-consecutive-active)            | 当打算开始一个新的consumer且此过程没有发生接收超时，consumer接收到的最小连续消息数。此外此参数的效果还受“ batchSize”的影响。 | Y    |      |
+| consecutiveIdleTrigger (min-consecutive-idle)                | 在打算停止consumer之前，consumer必须经历的最小接收超时数。此参数的效果也受“ batchSize”的影响。默认值是 10. | Y    |      |
+| consumerBatchEnabled (batch-enabled)                         | 如果MessageListener支持，将其设置为true，将启用离散消息的批处理，批处理大小取决于：`batchSize`；如果在receiveTimeout时间内没有新消息到达，则将分批投递。如果为false，仅被producer 创建的批次支持批处理； | Y    |      |
+| consumerStartTimeout (N/A)                                   | 等待consumer线程启动的时间（以毫秒为单位）。如果超过此段时间，将写入错误日志。 | Y    |      |
+| consumerTagStrategy (consumer-tag-strategy)                  | 设置ConsumerTagStrategy的实现类，可以为每个consumer创建一个（唯一的）tag。 | Y    | Y    |
+| consumersPerQueue (consumers-per-queue)                      | 为每个队列创建的consumer数量。                               |      | Y    |
+| consumeDelay (N/A)                                           | 当使用RabbitMQ分片插件时，如果`concurrentConsumers > 1`，会存在一种竞争条件，阻止消费者在各个分片之间平均分配。使用此属性可以在使用者启动过程中添加一个小的延迟，以避免这种竞争状况。这个值需要根据实际生产环境衡量确定。 | Y    | Y    |
+| debatchingEnabled (N/A)                                      | 当设置为true，listener container 将对批处理的消息进行分批处理，批处理中的每个message都会执行listener，如果listener是BatchMessageListener或ChannelAwareBatchMessageListener，生产者创建的批次将被分解为List <Message>，否则，将一次性显示批次中的所有消息。默认为 true。 | Y    | Y    |
+| declarationRetries (declaration-retries)                     | 被动队列声明失败时的重试尝试次数。一下情况被动队列声明 将会发生：1 consumer启动时，2在从多个队列中消费时，3在初始化过程中并非所有队列都可用时。重试用尽后，如果无法（由于任何原因）被动声明任何已经配置的队列，则container的行为由“ missingQueuesFatal”属性控制，默认是3次。 | Y    |      |
+| defaultRequeueRejected (requeue-rejected)                    | 由于listener 引发异常而被拒绝的消息，是否应重新排队。  默认值：true。 | Y    | Y    |
+| errorHandler (error-handler)                                 | 对ErrorHandler策略的引用，该策略用于处理在MessageListener执行期间可能发生的任何未捕获的异常。默认是 ConditionalRejectingErrorHandler。 | Y    | Y    |
+| exclusive (exclusive)                                        | 确定此container中的单个consumer是否独占队列。如果为真，则container的并发性必须为1。如果另一个使用者具有独占权，则容器将根据`recovery-interval`或`recovery-back-off`尝试恢复该consumer。默认 false。 | Y    | Y    |
+| exclusiveConsumer ExceptionLogger (N/A)                      | 当独占consumer 无法访问队列时使用的异常记录器。默认情况下，此日志记录在WARN级别。 | Y    | Y    |
+| failedDeclaration RetryInterval (failed-declaration -retry-interval) | 每次 重试声明被动队列 之间的间隔。默认值：5000（五秒钟）。   | Y    | Y    |
+| forceCloseChannel (N/A)                                      | 假如发生了：使用者未在shutdownTimeout内响应关闭 的情况，该值设为为true，则通道将被关闭，从而导致所有未确认的消息重新排队。从2.0开始默认为true。可以将其设置为false以恢复到以前的行为。 | Y    | Y    |
+| (group)                                                      | 仅在使用namespace时才可用。指定后，将使用该名称注册一个类型为Collection <MessageListenerContainer>的bean，并将每个<listener />元素的container添加到集合中。例如，这允许通过遍历集合来启动和停止容器组。 | Y    | Y    |
+| idleEventInterval (idle-event-interval)                      | 查看 6.2.13 检测空闲的异步消费者                             | Y    | Y    |
+| javaLangErrorHandler (N/A)                                   | 当容器线程捕获错误时调用会调用AbstractMessageListenerContainer.JavaLangErrorHandler实现。默认实现调用System.exit（99）;  若要还原为以前的行为（不执行任何操作），请添加一个无操作处理程序。 | Y    | Y    |
+| maxConcurrentConsumers (max-concurrency)                     | 启动的并发consumer的最大数量。 必须大于或等于“ concurrentConsumers”。 | Y    | Y    |
+| messagesPerAck (N/A)                                         | 在多个ack中接收的消息的数量。使用此选项可减少发送给broker的ack数量（以增加重新传递消息的可能性为代价）。通常，仅应该在高容量listener container 上设置此属性。如果设置了该选项并且拒绝了一条消息（引发了异常），那么将确认被挂起的ack，并拒绝失败的消息。不允许使用事务性channel。如果prefetchCount小于messagesPerAck，则应该适当加大prefetchCount，以匹配messagesPerAck。默认值：ack每条消息。 |      | Y    |
+| mismatchedQueuesFatal (mismatched-queues-fatal)              | 容器启动时，如果此属性为true（默认值：false），则容器将检查上下文中声明的所有队列是否与broker上已经存在的队列兼容。如果存在不匹配的属性（例如自动删除）或参数（例如x-message-ttl），则容器（和应用程序上下文）将以致命错误的结果启动失败。如果在恢复过程中（例如，在丢失连接之后）检测到问题，则会将容器停止。在应用程序上下文中必须有一个RabbitAdmin，否则，此属性必须为false。 | Y    | Y    |
+| missingQueuesFatal (missing-queues-fatal)                    | 设置为true（默认）时，如果broker上没有配置的队列可用，则认为这是致命的。这会导致应用程序上下文在启动期间无法初始化。同样，在容器运行时删除队列，默认情况下，使用者将进行三次重试以连接到队列（每隔五秒间隔），并在这些重试失败时后停止容器。在以前的版本中，这是不可配置的。设置为false时，在进行了三次重试之后，容器会进入恢复模式，并出现其他问题，例如代理关闭。容器会尝试根据recoveryInterval属性进行恢复。在每次恢复重试期间，每个使用者再次以五秒钟的间隔尝试四次被动地声明队列。  此过程将无限期地继续。此全局属性不适用于设置了明确的missingQueuesFatal属性的容器。 | Y    | Y    |
+| monitorInterval (monitor-interval)                           | 使用DMLC，会在此时间周期性地运行任务，以监视使用者的状态并恢复任何失败的使用者。 |      | Y    |
+| noLocal (N/A)                                                | 设置为true可以禁用  从服务器到 在同一通道的连接上发布的  consumer消息 的投递。 | Y    | Y    |
+| phase (phase)                                                | 值越低，此容器启动的越早，而容器停止的越晚。  默认值为Integer.MAX_VALUE，这意味着容器将尽可能晚地启动，并尽快停止。 | Y    | Y    |
+| possibleAuthentication FailureFatal (possible-authentication- failure-fatal) | 设置为true（默认值）时，如果在连接过程中引发了RequiredAuthenticationFailureException，则它被认为是致命的。这会导致应用程序上下文在启动期间无法初始化。 | Y    | Y    |
+| prefetchCount (prefetch)                                     | 每个使用者可能未完成的未确认消息的数量。此值越高，则可以越快地投递message，但进行非顺序处理的风险越高。如果acceptMode为NONE则忽略。  如有必要，可以增加该值以匹配batchSize或messagePerAck。  自2.0起默认为250。  您可以将其设置为1以还原为以前的行为。 | Y    | Y    |
+| rabbitAdmin (admin)                                          | 当listener container 监听到至少一个自动删除队列，并且在启动过程中发现该队列丢失时，该容器将使用RabbitAdmin声明队列以及所有相关的绑定和交换。    如果您不希望在容器启动之前声明自动删除队列，请在admin上将auto-startup设置为false。   默认为  声明所有非条件元素的   RabbitAdmin。 | Y    | Y    |
+| receiveTimeout (receive-timeout)                             | 等待每条消息的最长时间。如果acceptMode = NONE，则影响很小-容器转向要求另一条消息。对于`batchSize> 1`的事务性channel，它的影响最大，因为它能导致已超时消费的消息不被确认。当consumerBatchEnabled为true时，如果在批处理完成之前发生此超时，则将会投递给部分批处理。 | Y    |      |
+| recoveryBackOff (recovery-back-off)                          | 如果由于非致命原因而无法启动使用者，则为重试启动consumer之间的间隔指定BackOff。  默认值为FixedBackOff，每五秒钟无限制重试。  与recoveryInterval互斥。 | Y    | Y    |
+| recoveryInterval (recovery-interval)                         | 确定如果消费者由于非致命原因而无法启动，则尝试启动消费者之间的时间（以毫秒为单位）。  默认值：5000。与recoveryBackOff互斥。 | Y    | Y    |
+| retryDeclarationInterval (missing-queue- retry-interval)     | 如果使用者初始化期间配置的队列的子集可用，则使用者开始从这些队列consume。  consumer 尝试使用此间隔来被动地声明丢失的队列。   经过此时间间隔后，将再次使用“ declarationRetries”和“ failedDeclarationRetryInterval”。   如果仍然缺少队列，使用者将再次等待此间隔，然后再试一次。  此过程将无限期继续，直到所有队列可用为止。  默认值：60000（一分钟） | Y    |      |
+| shutdownTimeout (N/A)                                        | 当容器关闭时（例如，如果关闭了其封闭的ApplicationContext），它将等待处理运行中的消息直至达到此限制。  默认为五秒钟。 | Y    | Y    |
+| startConsumerMinInterval (min-start-interval)                | 每个新消费者按需启动之前必须经过的时间（以毫秒为单位）。  默认值：10000（10秒）。 | Y    |      |
+| statefulRetryFatal WithNullMessageId (N/A)                   | 使用有状态的重试advice时，如果收到缺少messageId属性的消息，则默认认为对使用者而言是致命的（已停止）。  将其设置为false可丢弃（或路由到死信队列）此类消息。 | Y    | Y    |
+| stopConsumerMinInterval (min-stop-interval)                  | 从检测到空闲consumer以来，最后一个 consumer 停止运行到停止consumer之前，必须经过的时间（以毫秒为单位）。 默认值：60000（一分钟）。 | Y    |      |
+| taskExecutor (task-executor)                                 | 执行listener 的 Spring TaskExecutor（或标准JDK 1.5+ Executor）的引用。  默认是使用内部托管线程的SimpleAsyncTaskExecutor。 | Y    | Y    |
+| taskScheduler (task-scheduler)                               | 使用DMLC，调度程序用于在“ monitorInterval”处运行监视任务。   |      | Y    |
+| transactionManager (transaction-manager)                     | 用于listener操作的外部事务管理器，也与channelTransacted互补-----如果Channel是事务性的，则其事务与外部事务同步。 | Y    | Y    |
 
 
 
