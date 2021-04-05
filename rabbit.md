@@ -4422,11 +4422,11 @@ public ApplicationRunner runner(RabbitTemplate template, ConnectionFactoryContex
 
 
 
+# 23 调试
 
+Spring AMQP提供了广泛的日志记录，尤其是在DEBUG级别。
 
-
-
-
+如果希望监视应用程序和broker之间的AMQP协议，则可以使用WireShark之类的工具，该工具有用于解码协议的插件。另外，RabbitMQ Java客户端带有一个非常有用的类，称为Tracer。当run as a `main`，默认情况下，它将监听 端口5673 并连接到本地主机上的 端口5672 。您可以运行它并更改连接工厂配置以连接到本地主机上的端口5673。它在控制台上显示解码的协议。
 
 
 
