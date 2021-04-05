@@ -36,7 +36,7 @@
 
 ## 1.1消息Message
 
-![image-20210330153859778](image\image-20210330153859778.png)
+![image-20210330153859778](image/image-20210330153859778.png)
 
 如上图所示，AMQP 规范本身并没有定义message的规范（类或者接口），当执行类似 `basicPublish()`等发送消息的操作时，内容通过字节数组参数传递，其他属性作为单独的参数传递。Spring AMQP定义了`Message`类作为更通用的AMQP领域模型组成的一部分。  `message`将body和properties 作为两个属性构成自身，使得操作更加容易和易于理解，这也是典型的面向对象设计，下面是它的主要源码设计：
 
@@ -499,7 +499,7 @@ rabbitTemplate.setConnectionFactory(cachingConnectionFactory);
 rabbitTemplate.convertAndSend("a.queue","hello");
 ```
 
-![image-20210331165332435](image\image-20210331165332435.png)
+![image-20210331165332435](image/image-20210331165332435.png)
 
 
 
@@ -511,7 +511,7 @@ ConnectionFactory参数可以用于通过某种逻辑来区分目标连接名称
 
 比如这样：
 
-![image-20210331170234075](image\image-20210331170234075.png)
+![image-20210331170234075](image/image-20210331170234075.png)
 
 也可以使用一个`ConnectionNameStrategy`的实现类：SimplePropertyValueConnectionNameStrategy将连接名称设置为应用程序属性。我们可以将其声明为@Bean并将其注入连接工厂：
 
@@ -533,7 +533,7 @@ public ConnectionFactory rabbitConnectionFactory(ConnectionNameStrategy cns) {
 
 然后再使用的地方注入ConnectionFactory即可：
 
-![image-20210331170952140](image\image-20210331170952140.png)
+![image-20210331170952140](image/image-20210331170952140.png)
 
 > 此外，当我们使用springboot自动配置 ConnectionFactory 的时候，只需要在容器声明ConnectionNameStrategy` `@Bean即可，springboot虎自动检测到`ConnectionNameStrategy`并将其设置到 ConnectionFactory 。
 
