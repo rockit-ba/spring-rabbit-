@@ -38,7 +38,7 @@
 
 ![image-20210330153859778](image/image-20210330153859778.png)
 
-如上图所示，AMQP 规范本身并没有定义message的规范（类或者接口），当执行类似 `basicPublish()`等发送消息的操作时，内容通过字节数组参数传递，其他属性作为单独的参数传递。Spring AMQP定义了`Message`类作为更通用的AMQP领域模型组成的一部分。  `message`将body和properties 作为两个属性构成自身，使得操作更加容易和易于理解，这也是典型的面向对象设计，下面是它的主要源码设计：
+如上图所示，AMQP 规范本身并没有定义message的规范（类或者接口），当执行类似 `basicPublish()`等发送消息的操作时，内容通过字节数组参数传递，其它属性作为单独的参数传递。Spring AMQP定义了`Message`类作为更通用的AMQP领域模型组成的一部分。  `message`将`body`和`properties` 作为两个属性构成自身，使得操作更加容易和易于理解，这也是典型的面向对象设计，下面是它的主要源码设计：
 
 ```java
 public class Message implements Serializable {
@@ -91,11 +91,11 @@ public class Message implements Serializable {
 
 ### 1.1.1body
 
-属性作为消息content。
+属性作为 消息 content。
 
 ### 1.1.2messageProperties
 
-作为消息的附加属性，里面包括 timestamp、messageId、correlationId、deliveryMode、expiration等等，同时提供了private final Map<String, Object> headers 属性，可以让用户添加自定义属性 `setHeader(String key, Object value)`。
+作为消息的附加属性，里面包括 timestamp、messageId、correlationId、deliveryMode、expiration等等，同时提供了`private final Map<String, Object> headers` 属性，可以让用户添加自定义属性 `setHeader(String key, Object value)`。
 
 ### 1.1.3whiteListPatterns
 
@@ -185,9 +185,9 @@ Goods 全限定名：com.rabbit.producer.Goods，Price 全限定名：com.rabbit
 
 这里表明的是实体类中引用的值对象也需要实现`Serializable` 接口，并且被引用的值对象的限定名或者包名也需要添加 `AllowedListPatterns`。
 
-## 1.2交换机Exchange
+## 1.2 交换机Exchange
 
-`Exchange`接口对应了AMQP模型中的Exchange，消息生产者将会把消息发送给它。broker中的virtual host（此概念再下文会有详细解释，读者可以将其当做一台机器的一个目录，此一级目录下的文件名不能重复，当然它没有子目录）下的每个Exchange都有唯一的名称和一些其它属性。下面是`Exchange`的构成：
+`Exchange`接口对应了AMQP模型中的 `Exchange`，消息生产者将会把消息发送给它。broker中的virtual host（此概念再下文会有详细解释，读者可以将其当做一台机器的一个目录，此一级目录下的文件名不能重复，当然它没有子目录）下的每个`Exchange`都有唯一的名称和一些其它属性。下面是`Exchange`的构成：
 
 ```java
 public interface Exchange extends Declarable {
@@ -224,7 +224,7 @@ public interface Exchange extends Declarable {
 	boolean isDelayed();
 
 	/**
-	 * 是否只用于broker内部，也就是client不能向起进行publish操作。
+	 * 是否只用于broker内部，如果为true，client不能向其进行publish操作。
 	 * @since 1.6
 	 */
 	boolean isInternal();
@@ -242,7 +242,7 @@ direct 类型通常实现准确的一对一绑定，topic在特殊情况下也�
 
 ## 1.3队列Queue
 
-`Queue`是message消费者获取message的组件，像Exchange一样，它实现了AMQP模型中的 queue。下面是它的类结构：
+`Queue`是message消费者获取message的组件，像`Exchange`一样，它实现了AMQP模型中的 queue。下面是它的类结构：
 
 ```java
 public class Queue extends AbstractDeclarable implements Cloneable {
@@ -275,17 +275,17 @@ public abstract class AbstractDeclarable implements Declarable {
 }
 ```
 
-`Queue`的构造函数可以只接受一个queue name，durable 默认true，exclusive和autoDelete 默认false。另外 `RabbitAdmin`可以直接declareQueue()，它可以为生成的queue设置唯一的队列名，这样做往往是我们需要一个临时队列，因此它的exclusive和autoDelete 都是true。
+`Queue`的构造函数可以只接受一个queue name，durable 默认true，exclusive和autoDelete 默认false。另外 `RabbitAdmin`可以直接declareQueue()，它可以为生成的queue设置唯一的队列名，这样做往往是我们需要一个临时队列，因此它的`exclusive`和`autoDelete` 都是true。
 
 
 
-## 1.4绑定规则Binding
+## 1.4 绑定规则Binding
 
 在AMQP模型中，生产者发送消息给exchange，消费者从queue中获取消息，那么连接exchange和queue的规则就是`Binding`，因此Binding至关重要。springAMQP 定义了 `Binding`类来代表这些连接规则。
 
 ------
 
-你可以使用定的路由键将队列绑定到一个`DirectExchange`上面：
+你可以使用定的routing key 将队列绑定到一个`DirectExchange`上面：
 
 ```java
 new Binding(someQueue, someDirectExchange, "foo.bar");
@@ -293,7 +293,7 @@ new Binding(someQueue, someDirectExchange, "foo.bar");
 
 ------
 
-你也可以使用字符串匹配的方式将队列绑定到`TopicExchange`上：
+你也可以使用 字符串匹配 的方式将队列绑定到`TopicExchange`上：
 
 ```java
 new Binding(someQueue, someTopicExchange, "foo.*");
@@ -301,7 +301,7 @@ new Binding(someQueue, someTopicExchange, "foo.*");
 
 ------
 
-你也可以将队列和`FanoutExchange`绑定，由于是广播，你无需设置路由键：
+你也可以将队列和`FanoutExchange`绑定，由于是广播，你无需设置routing key：
 
 ```java
 new Binding(someQueue, someFanoutExchange);
@@ -355,9 +355,9 @@ Binding b = BindingBuilder.bind(someQueue).to(someTopicExchange).with("foo.*");
 
 ### PooledChannelConnectionFactory
 
-这个工厂基于Apache Pool2实现，管理着一个单例 connection 和两个channel 池，两个channel 池 其中一个用于事务通道，另一个用于非事务通道，这些池都有默认的配置`GenericObjectPool`（这是`commons-pool2`中的类）；同时提供了一个回调函数配置池。
+这个工厂基于Apache Pool2实现，管理着单个 connection 和两个 channel 池，两个channel 池 其中一个用于事务通道，另一个用于非事务通道，这些池都有默认的配置`GenericObjectPool`（这是`commons-pool2`中的类）；同时提供了一个 回调函数配置池。
 
-要使用这个工厂，springAMQP默认并没有引入`commons-pool2`，如果你确实用到这个工厂，你需要引入相关依赖。
+springAMQP 默认并没有引入`commons-pool2`，如果你确实用到这个工厂，你需要引入相关依赖。
 
 ```xml
 <dependency>
@@ -366,7 +366,7 @@ Binding b = BindingBuilder.bind(someQueue).to(someTopicExchange).with("foo.*");
 </dependency>
 ```
 
-容器添加PooledChannelConnectionFactory：
+容器添加 PooledChannelConnectionFactory：
 
 ```java
 @Bean
@@ -392,9 +392,9 @@ Binding b = BindingBuilder.bind(someQueue).to(someTopicExchange).with("foo.*");
 
 ### ThreadChannelConnectionFactory
 
-这个工厂管理一个单例的connection 和两个ThreadLocal，两个ThreadLocal其中一个用于事务channel，另一个用于非事务channel。由于维护了ThreadLocal，他能保证同一个的线程上的操作都是用相同的channel，这就保证了消息的顺序性。由于引进了ThreadLocal，为了避免发生内存泄漏，如果应用程序使用了大量short-lived 线程，那么必须要调用该工厂的 closeThreadChannel() 方法释放 channel 资源。
+这个工厂管理单个connection 和两个 ThreadLocal，两个 ThreadLocal 其中一个用于事务channel，另一个用于非事务channel。由于维护了ThreadLocal，他能保证同一个的线程上的操作都是用相同的`channel`，这就保证了消息的顺序性。由于引进了ThreadLocal，为了避免发生内存泄漏，如果应用程序使用了大量short-lived 线程，那么必须要调用该工厂的 `closeThreadChannel()` 方法释放 channel 资源。
 
-它同样接收一个原生的 `com.rabbitmq.client.ConnectionFactory`用于建立和broker的连接。
+它同样需要接收一个原生的 `com.rabbitmq.client.ConnectionFactory`用于建立和broker的连接。
 
 > 关于ThreadLocal内存泄漏：
 >
@@ -406,7 +406,7 @@ Binding b = BindingBuilder.bind(someQueue).to(someTopicExchange).with("foo.*");
 
 ### CachingConnectionFactory
 
-默认情况下，它建立一个可以被应用程序共享的单例连接代理，它能够做到共享，因为AMQP的工作单元是一个channel（管道）（类似于JMS中连接和会话的关系），连接实例提供 createChannel 的方法，CachingConnectionFactory实现了能够支持缓存这些channel，并且会根据这些channel是否是事务性channel从而维护特定的缓存。在创建 CachingConnectionFactory 实例的时候，可以通过构造函数指定它的 hostname，同时还应该设置 username 和 password 属性。你还可以通过调用 `setChannelCacheSize()` 方法设置channel 缓存的大小（默认是 25）。
+默认情况下，它建立一个可以被应用程序共享的连接代理，它能够做到共享，因为AMQP的工作单元是一个channel（管道）（类似于JMS中连接和会话的关系），连接实例提供 createChannel 的方法，CachingConnectionFactory实现了能够支持缓存这些channel，并且会根据这些channel是否是事务性channel去维护特定的缓存。在创建 CachingConnectionFactory 实例的时候，可以通过构造函数指定它的 hostname，同时还应该设置 username 和 password 属性。你还可以通过调用 `setChannelCacheSize()` 方法设置channel 缓存的大小（默认是 25）。
 
 ```java
 CachingConnectionFactory cachingConnectionFactory = new CachingConnectionFactory("localhost");
@@ -434,7 +434,7 @@ Channel channel = connection.createChannel(false);
 
 **CONNECTION**：缓存Connection和每个Connection创建的channel
 
-从1.3版本，可以将其设置为CONNECTION，当`CacheMode`为 CONNECTION 的时候，每次createConnection() 调用会使用一个新的或者缓存的（如果有缓存）Connection，Connection会根据 `connectionCacheSize` 的值被进行缓存，调用`Channel#close()`方法会向缓存中返回channel（如果缓存还有空间）。在这种模式下，Connection 和 在Connection 上创建的channel都会被缓存。
+从1.3版本，可以将其设置为CONNECTION，当`CacheMode`为 CONNECTION 的时候，每次`createConnection()` 都会使用一个新的或者缓存的（如果有缓存）Connection，Connection会根据 `connectionCacheSize` 的值被进行缓存，调用`Channel#close()`方法会向缓存中返回channel（如果缓存还有空间）。在这种模式下，Connection 和 在Connection 上创建的channel都会被缓存。
 
 > 在某些场景下使用单独的Connection 可能是很好的。比如使用HA集群结合负载均衡器，连接不同的集群成员或者其它。
 
@@ -442,11 +442,11 @@ Channel channel = connection.createChannel(false);
 
 
 
-从1.5.5开始，CachingConnectionFactory 提供了一个 `connectionLimit`的属性。该属性可以用来设置允许的Connection  总数（默认为Integer.MAX_VALUE）。然后可以调用 setChannelCheckoutTimeout() 设置等待连接空闲的超时时间，当设置之后如果达到了配置的限制数量，会进行等待，如果超时，会抛出 AmqpTimeoutException。
+从1.5.5开始，CachingConnectionFactory 提供了一个 `connectionLimit`的属性。该属性可以用来设置允许的连接 总数（默认为Integer.MAX_VALUE）。然后可以调用 setChannelCheckoutTimeout() 设置等待连接空闲的超时时间，当设置之后如果达到了限制数量，会进行等待，如果超时，会抛出 AmqpTimeoutException。
 
 - [x] 注意：
 
-> 当`CacheMode`设置为 CONNECTION，不支持队列和其它类型的自动声明。
+> 当`CacheMode`设置为 CONNECTION，不支持队列和其它类型的 自动声明。
 >
 > 且目前的amqp-client库默认会为每个connection创建一个固定大小的线程池（大小为：Runtime.getRuntime().availableProcessors() * 2），当我们的程序需要使用大量的connection的时候，应该 CachingConnectionFactory 自定义单独创建一个  Executor以提高性能。
 
@@ -458,11 +458,11 @@ Channel channel = connection.createChannel(false);
 
 从版本 1.4.2 开始，`CachingConnectionFactory`提供了一个`channelCheckoutTimeout`属性（请不要混淆`connectionLimit`）。当此属性大于零时，`channelCacheSize` 将对连接上创建的通道数进行限制。如果达到限制量，调用线程将阻塞，直到通道可用或达到此超时，如果超时，将抛出AmqpTimeoutException。
 
-> 框架中使用的channel（例如RabbitTemplate），框架能够保证 channel 会被可靠地返回到缓存。如果在框架之外创建通道（例如，通过直接访问连接并调用createChannel（）），则必须可靠地（通过关闭）返回它们（可能在finally块中），以避免通道耗尽。
+> 框架中使用channel（例如RabbitTemplate），框架能够保证 channel 会被可靠地返回到缓存。如果在框架之外创建通道（例如，通过直接访问连接并调用createChannel（）），则必须可靠地（通过关闭）返回它们（可能在finally块中），以避免通道耗尽。
 
 
 
-## 2.2AddressResolver
+## 2.2 AddressResolver
 
 从版本2.1.15开始，可以使用`AddressResover`解析连接地址，这将覆盖address和host/port属性的任何设置。
 
@@ -483,9 +483,9 @@ rabbitTemplate.convertAndSend("a.queue","hello");
 
 
 
-## 2.3命名连接
+## 2.3 命名连接
 
-从版本1.7开始，一个`ConnectionNameStrategy`被提供并且注入到`AbstractionConnectionFactory`。生成的name用于应用程序识别RabbitMQ的连接。如果RabbitMQ服务器支持连接名，则该连接名将显示在管理UI中。此值不必是唯一的，并且不能用作连接标识符 - ，例如，在HTTP API请求中。这个值应该是可读的，并且是connection\u name键下ClientProperties的一部分。可以使用简单的 Lambda，如下所示：
+从版本1.7开始，一个`ConnectionNameStrategy`被提供并且注入到`AbstractionConnectionFactory`。生成的name用于 应用程序 识别RabbitMQ的连接。如果RabbitMQ服务器支持连接名，则该连接名将显示在管理UI中。此值不必是唯一的，并且不能用作连接标识符 ，例如，在HTTP API请求中。这个值应该是可读的，并且是connection\u name键下ClientProperties的一部分。可以使用简单的 Lambda，如下所示：
 
 代码示例：
 
@@ -539,9 +539,9 @@ public ConnectionFactory rabbitConnectionFactory(ConnectionNameStrategy cns) {
 
 
 
-## 2.4连接阻塞和资源限制
+## 2.4 连接阻塞和资源限制
 
-有时候连接可能被阻塞，以便与内存警报对应的broker进行交互。从版本2.0开始，`org.springframework.amqp.rabbit.connection.Connection`可提供`com.rabbitmq.client.BlockedListener`实例，他可以收到连接 blocked 或 unblocked 的事件通知。另外，`AbstractConnectionFactory`通过其内部的`BlockedListener`实现分别发出`ConnectionBlockedEvent`和`ConnectionUnblockedEvent`事件。这将允许我们提供应用程序逻辑，以便对broker上的问题做出适当的反应，并（例如）采取一些纠正措施。
+有时候连接可能被阻塞。从版本2.0开始，`org.springframework.amqp.rabbit.connection.Connection`可提供`com.rabbitmq.client.BlockedListener`实例，他可以收到连接 blocked 或 unblocked 的事件通知。另外，`AbstractConnectionFactory`通过其内部的`BlockedListener`实现分别发出`ConnectionBlockedEvent`和`ConnectionUnblockedEvent`事件。这将允许我们提供应用程序逻辑，以便对broker上的问题做出适当的反应，并（例如）采取一些纠正措施。
 
 > 注意：
 >
@@ -3869,6 +3869,7 @@ template.send(exchange, routingKey,
 ```
 
 ```java
+// 或者
 rabbitTemplate.convertAndSend(exchange, routingKey, "foo", new MessagePostProcessor() {
     @Override
     public Message postProcessMessage(Message message) throws AmqpException {
