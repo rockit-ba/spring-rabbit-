@@ -541,7 +541,7 @@ public ConnectionFactory rabbitConnectionFactory(ConnectionNameStrategy cns) {
 
 ## 2.4 连接阻塞和资源限制
 
-有时候连接可能被阻塞。从版本2.0开始，`org.springframework.amqp.rabbit.connection.Connection`可提供`com.rabbitmq.client.BlockedListener`实例，他可以收到连接 blocked 或 unblocked 的事件通知。另外，`AbstractConnectionFactory`通过其内部的`BlockedListener`实现分别发出`ConnectionBlockedEvent`和`ConnectionUnblockedEvent`事件。这将允许我们提供应用程序逻辑，以便对broker上的问题做出适当的反应，并（例如）采取一些纠正措施。
+有时候连接可能被阻塞。从版本2.0开始，`org.springframework.amqp.rabbit.connection.Connection`可提供`com.rabbitmq.client.BlockedListener`实例，它可以收到 连接 blocked 或 unblocked 的事件通知。另外，`AbstractConnectionFactory`通过其内部的`BlockedListener`实现分别发出`ConnectionBlockedEvent`和`ConnectionUnblockedEvent`事件。这将允许我们提供应用程序逻辑，以便对broker上的问题做出适当的反应，并（例如）采取一些纠正措施。
 
 > 注意：
 >
@@ -555,20 +555,22 @@ public ConnectionFactory rabbitConnectionFactory(ConnectionNameStrategy cns) {
 
 
 
-## 2.5配置底层客户端 Connection Factory
+## 2.5 配置底层客户端 Connection Factory
 
-上面稍微提及，`CachingConnectionFactory` 并没有重复造轮子，而是在底层包装了 `com.rabbitmq.client`的 `ConnectionFactory`，因此当在`CachingConnectionFactory`中设置同样的参数的时候，会传递许多配置属性：host, port, userName, password, requestedHeartBeat（心跳检测）, 和 connectionTimeout（连接超时）等。假如要设置其他属性（比如`clientProperties`）的时候，你可以定义一个rabbit factory实例，然后用`CachingConnectionFactory` 的适当的构造函数传递它的引用。在使用namespace的时候，我们需要在 `connection-factory`属性中提供被配置的factory的引用。为了方便起见，提供了一个factory bean 来帮助在 spring 应用上下文中配置连接工厂，下一节会有相关介绍。
+上面稍微提及，`CachingConnectionFactory` 并没有重复造轮子，而是在底层包装了 `com.rabbitmq.client`的 `ConnectionFactory`，因此当在`CachingConnectionFactory`中设置同样的参数的时候，会传递许多配置属性：host, port, userName, password, requestedHeartBeat（心跳检测）, 和 connectionTimeout（连接超时）等。假如要设置其他属性（比如`clientProperties`）的时候，你可以定义一个rabbit factory实例，然后用`CachingConnectionFactory` 的适当的构造函数传递它的引用。在使用namespace创建的时候，我们需要在 `connection-factory`属性中提供被配置的factory的引用。为了方便起见，提供了一个factory bean 来帮助在 spring 应用上下文中配置连接工厂，下一节会有相关介绍。
 
 ```xml
 <rabbit:connection-factory
       id="connectionFactory" connection-factory="rabbitConnectionFactory"/>
 ```
 
-> 提示：rabbit 4.0.x 的client默认会启用自动恢复功能，spring AMQP尽管和这个特性兼容，但spring AMQP拥有自己的恢复机制，通常是不需要用到client的恢复特性的。同时也建议禁用 `amqp-client`的自动恢复特性，以避免在 broker 可用，但 connection 尚未恢复的时候得到 `AutoRecoverConnectionNotCurrentlyOpenException`异常。可能你注意到了这个异常，比如你在 `RabbitTemplate`中设置了 `RetryTemplate`，即使故障已经转移到集群中的另一个broker中，还是会收到这个异常。同时，自动恢复是在一个timer上恢复的，相比较而言，使用spring AMQP 的恢复机制能够有更高的效率。因此，从1.7.1版本开始，spring AMQP 禁用了`amqp-client`的自动恢复特性，除非你显示地创建了 rabbit connection，并设置到了 `CachingConnectionFactory`中。RabbitMQ `ConnectionFactory`实例创建的 `RabbitConnectionFactoryBean`默认也拥有禁用的选项。
+> 提示：rabbit 4.0.x 的client默认会启用自动恢复功能，spring AMQP尽管和这个特性兼容，但spring AMQP拥有自己的恢复机制，通常是不需要用到client的恢复特性的。同时也建议禁用 `amqp-client`的自动恢复特性，以避免在 broker 可用，但 connection 尚未恢复的时候得到 `AutoRecoverConnectionNotCurrentlyOpenException`异常。
+>
+> 可能你注意到了这个异常，比如你在 `RabbitTemplate`中设置了 `RetryTemplate`，即使故障已经转移到集群中的另一个broker中，还是会收到这个异常。同时，自动恢复是在一个timer上恢复的，相比较而言，使用spring AMQP 的恢复机制能够有更高的效率。因此，从1.7.1版本开始，spring AMQP 禁用了`amqp-client`的自动恢复特性，除非你显示地创建了 rabbit connection，并将`amqp-client`设置到了 `CachingConnectionFactory`中。RabbitMQ `ConnectionFactory`实例创建的 `RabbitConnectionFactoryBean`默认也拥有禁用的选项。
 
 
 
-## 2.6`RabbitConnectionFactoryBean` 和 配置 SSL 
+## 2.6 `RabbitConnectionFactoryBean` 和 配置 SSL 
 
 从1.4版本开始，提供了一个 方便的`RabbitConnectionFactoryBean`，通过依赖注入可以方便地配置底层客户端连接工厂上的 SSL 属性，其它的配置委托给底层工厂，以前我们只能通过硬编码的方式配置SSL，现在可以看到如下的示例：
 
